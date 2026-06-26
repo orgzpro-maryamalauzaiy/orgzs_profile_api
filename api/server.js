@@ -11,27 +11,29 @@ const app = express()
 
 dotenv.config()
 
-const allowedOrigins = ['http://localhost:3000/']
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001']
 
+// (origin, callback) => {
+//     if (!origin || allowedOrigins.includes(origin)) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error('Not allowed by CORS'))
+//     }
+//   }
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
-  methods: ['GET', 'POST'], // Specify allowed HTTP methods
-  allowedHeaders: ['Content-Type'], // Specify allowed headers
+  origin: allowedOrigins,
+  // methods: ['GET', 'POST'], // Specify allowed HTTP methods
+  // allowedHeaders: ['Content-Type'], // Specify allowed headers
   credentials: true,
 };
 
+app.use(express.json())
+app.use(express.urlencoded({extended: true}))
+app.use(cookieParser())
 // app.use(/.*/, cors())
-cors(corsOptions)
+app.use(cors(corsOptions))
 
 // app.use(cors())
-app.use(express.json())
-app.use(cookieParser())
 
 app.get('/',(req, res) => {
     res.send("Hello from Organization Profile server")

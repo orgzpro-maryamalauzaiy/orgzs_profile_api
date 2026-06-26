@@ -2,6 +2,7 @@ import {createLogger, transports, format} from 'winston'
 import { logDirectory } from '../config.js'
 import DailyRotateFile from 'winston-daily-rotate-file'
 import fs from 'fs'
+import path from 'path'
 
 let dir = logDirectory ?? "logs"
 
