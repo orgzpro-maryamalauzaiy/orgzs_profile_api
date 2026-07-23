@@ -11,7 +11,7 @@ const app = express()
 
 dotenv.config()
 
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://15f1-113-11-180-17.ngrok-free.app','https://orgzsprofileapi.vercel.app']
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://www.rumahquran-alayman.com', 'https://15f1-113-11-180-17.ngrok-free.app','https://orgzsprofileapi.vercel.app']
 
 // (origin, callback) => {
 //     if (!origin || allowedOrigins.includes(origin)) {
@@ -20,18 +20,32 @@ const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https
 //       callback(new Error('Not allowed by CORS'))
 //     }
 //   }
+// const corsOptions = {
+//   origin: allowedOrigins,
+//   // methods: ['GET', 'POST'], // Specify allowed HTTP methods
+//   // allowedHeaders: ['Content-Type'], // Specify allowed headers
+//   credentials: true,
+// };
+
 const corsOptions = {
-  origin: allowedOrigins,
-  // methods: ['GET', 'POST'], // Specify allowed HTTP methods
-  // allowedHeaders: ['Content-Type'], // Specify allowed headers
-  credentials: true,
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  optionsSuccessStatus: 200,
+  credentials: true
 };
 
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
-app.use(/.*/, cors())
-// app.use(cors(corsOptions))
+// app.use(/.*/, cors())
+app.use(cors(corsOptions))
 
 // app.use(cors())
 
