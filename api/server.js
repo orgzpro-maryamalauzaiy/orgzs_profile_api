@@ -11,7 +11,7 @@ const app = express()
 
 dotenv.config()
 
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001']
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://15f1-113-11-180-17.ngrok-free.app']
 
 // (origin, callback) => {
 //     if (!origin || allowedOrigins.includes(origin)) {

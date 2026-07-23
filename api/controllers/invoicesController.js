@@ -338,7 +338,7 @@ export const createInvoiceMid = async (req, res) => {
     const start = '0000'
     const order = orders[0].invoice_number? String(parseInt(orders[0].invoice_number.slice(-4)) + 1).padStart(4, '0') : String(1).padStart(4, '0')
 
-    const invoice_number = `${prefix}${String(new Date().getFullYear()).slice(-2)}/${type || 'CLASS'}/${order}`
+    const invoice_number = `${prefix}${String(new Date().getFullYear()).slice(-2)}${type || 'CLASS'}-${order}`
 
     // const order =
     const { data, error } = await supabase
@@ -433,9 +433,9 @@ export const createInvoiceMid = async (req, res) => {
 
         const username = process.env.SERVER_MODE == 'development'?process.env.PG_SANDBOX_SERVER_KEY: process.env.PG_PROD_SERVER_KEY
         console.log('username', username)
-        const AUTH_STRING = 'Basic ' + btoa(username + ":")
+        // const AUTH_STRING = 'Basic ' + btoa(username + ":")
+        const AUTH_STRING = 'Basic ' + new Buffer(username + ":").toString('base64')
         console.log('AUTH_STRING', AUTH_STRING, PG_API_URL)
-        // const AUTH_STRING = 'Basic ' + new Buffer(username + ":").toString('base64')
 
         const transaction = {
             transaction_details: {
@@ -461,7 +461,7 @@ export const createInvoiceMid = async (req, res) => {
         console.log(transaction)
 
         await axios.post(`${PG_API_URL}/transactions`, transaction, {headers: {accept: 'application/json', 'content-type': 'application/json', Authorization: AUTH_STRING}})
-                    .then(result => {
+                    .then(async result => {
                         console.log('result', result)
                         if(result.status == 201){
                             // const { data, error } = await supabase
@@ -472,8 +472,6 @@ export const createInvoiceMid = async (req, res) => {
 
                             // if(error){
                             //     return res.status(400).json({error: true, message: 'Error create invoice'})
-
-
                             // }
                             res.status(200).json({error: false, message: 'Successfull create invoice', data: {token: result.data.token, payment_url: result.data.redirect_url, transaction_date: transaction_date}})
 
@@ -482,6 +480,233 @@ export const createInvoiceMid = async (req, res) => {
                     .catch(error => {
                         return res.status(400).json({error: true, message: 'Error when create invoice: ' + error})
                     })
+
+        // let parameter = {
+        //     "transaction_details": {
+        //         "order_id": new_order.rows[0].id,
+        //         "gross_amount": amount
+        //     },
+        //     "credit_card":{
+        //         "secure" : true
+        //     },
+        //     "customer_details": {
+        //         "first_name": customer.full_name,
+        //         "last_name": '-',
+        //         "email": customer.email,
+        //         "phone": customer.phone_number
+        //     }
+        // };
+
+        // snap.createTransaction(parameter)
+        //     .then((transaction)=>{
+        //         // transaction token
+        //         console.log(transaction)
+        //         let transactionToken = transaction.token;
+        //         console.log('transactionToken:',transactionToken);
+
+        //         res.json({transactionToken})
+        //     })
+    // }
+
+
+  } catch (error) {
+    return res.status(500).json({error: 'Error when create invoice ' + error})
+  }
+}
+
+export const createGeneralInvoice = async (req, res) => {
+  try {
+    // req.cookie
+
+    // const {products, total_amount, total_price, admin_fee, total_discount, promo_code} = req.body
+    // const uni = req.user.uni
+
+    const {participants, phone_number, class_name, class_id, packet, category, type, total_price, amount, discount, promo_code, admin_fee} = req.body
+
+    const transaction_date = new Date().toISOString()
+
+    const orgz_id = req.headers.oi
+
+    console.log(orgz_id, req.headers)
+
+    const { data: orgz_packets, error_p } = await supabase
+                                        .from('orgz_packets')
+                                        .select("*")
+                                        .eq('code', packet)
+                                        .is('deleted_at', null)
+
+    console.log('packet:', orgz_packets)
+
+    if(error_p){
+        logger.error('Error get packet info')
+        res.status(400).json({message: 'Packet not found'})
+    }
+
+    const prefix = 'INO'
+    const { data: orders, error_o } = await supabase
+                            .from('orgz_orders')
+                            .select('*')
+                            .eq('orgz_id', orgz_id)
+                            .is('deleted_at', null)
+                            .order('created_at', {ascending: false})
+                            .limit(1)
+
+    console.log('orders', orders, error_o, orders[0]?.invoice_number)
+
+    if(error_o){
+        logger.error('Error when request invoice: ' + error_o)
+        return res.status(500).json({message: 'Error when request invoice'})
+    }
+
+    const start = '0000'
+    const order = orders[0].invoice_number? String(parseInt(orders[0].invoice_number.slice(-4)) + 1).padStart(4, '0') : String(1).padStart(4, '0')
+
+    const invoice_number = `${prefix}${String(new Date().getFullYear()).slice(-2)}/${type || 'CLASS'}/${order}`
+
+    // const order =
+    const { data, error } = await supabase
+                            .from('orgz_orders')
+                            .insert([{
+                                    total_price: parseInt(total_price),
+                                    total_amount: parseInt(amount),
+                                    total_discount: parseInt(discount) || 0,
+                                    promo_code: promo_code,
+                                    admin_fee: 0,
+                                    // created_by: ,
+                                    order_status: 'pending',
+                                    // orgz_user_id uuid null,
+                                    orgz_id: orgz_id,
+                                    orgz_packet_id: orgz_packets.id,
+                                    invoice_number: invoice_number
+                                }
+                            ])
+                            .select()
+
+    console.log('invoice_number', invoice_number, data, error)
+
+    if(error){
+        logger.error('Error when create order')
+        return res.status(500).json({message: 'Error when create order: ' + error})
+
+    }
+
+    const transaction = {
+        transaction_details: {
+            order_id: invoice_number,
+            gross_amount: parseInt(total_price)
+        },
+        item_details: [{
+            id: class_id,
+            price: parseInt(total_price),
+            quantity: amount,
+            name: class_name,
+            category: type
+        }],
+        "customer_details": {
+            "first_name": participants,
+            "last_name": "-",
+            "email": "-",
+            "phone": phone_number
+        }
+    }
+
+
+    // const order_id = invoice_number || '321654'
+
+    // const new_orders = {
+    //     orgz_id: 'af8361e6-11ff-4800-b996-f2d567a7e56d',
+    //     total_price: price,
+    //     total_amount: amount,
+    //     total_discount: discount,
+    //     promo_code: promo_code,
+    //     admin_fee: admin_fee,
+    // }
+
+    // const { data: order, error } = await supabase
+    //     .from('orgz_orders')
+    //     .insert([
+    //         new_orders
+    //     ])
+    //     .select()
+
+    // const prefix = 'INS-'
+    // const orders = await pool.query('SELECT invoice_number FROM orders ORDER BY invoice_number desc')
+
+    // console.log('orders', orders.rows, uni)
+
+    // let inv_number = `${prefix}-${new Date().getFullYear()}`
+    // let order = '00000'
+    // if(!orders){
+    //     order = String(1).padStart(4, '0')
+    // }else{
+    //     order = String(parseInt(orders.rows[0].invoice_number.split('/')[2]) + 1).padStart(4, '0')
+    // }
+
+    // inv_number = `${inv_number}-${order}`
+    // const {rows} = await pool.query('INSERT INTO orders (invoice_number, total_price, total_amount, total_discount, admin_fee, promo_code, order_status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    //     [inv_number, total_price, total_amount, total_discount, admin_fee, promo_code, 'pending' ]
+    // )
+
+    // console.log('new_order', rows)
+
+    // if(!rows){
+    //     return res.status(400).json({error: true, message: 'Error create order'})
+    // }
+
+    // const new_order = await pool.query('SELECT * FROM orders WHERE invoice_number = $1 AND deleted_at is null', [inv_number])
+
+    // const order_id = 'INS/' + new Date().getSeconds()
+
+    // req.user.uni ||
+    // req.user.account_id ||
+    // const account_id = '004d28d4-a4b6-4a70-bc24-5dc55ace83f1'
+    // const users = await pool.query('SELECT id FROM users WHERE uni = $1', [uni])
+
+    // const customers = await pool.query('SELECT c.email,c.full_name,c.phone_number FROM customers c LEFT JOIN users u ON u.account_id = c.id WHERE uni = $1 AND u.deleted_at is null', [uni])
+
+    // if(customers){
+        // products.forEach((item) => {
+        //     const { rows } = pool.query('INSERT INTO order_details (order_id, product_id, price, amount, discount, promo_code, admin_fee) VALUES ($1, $2, $3, $4, $5, $6, $7)', [new_order.rows[0].id, item._id, item.price, item.quantity, 0, "", 0])
+        // });
+
+        // if(!rows){
+        //     return res.status(200).json({error: true, message: 'Error when create order'})
+        // }
+        // const customer = customers.rows[0]
+
+        res.status(200).json({error: false, message: 'Successfull create invoice', data: transaction})
+
+        // const username = process.env.SERVER_MODE == 'development'?process.env.PG_SANDBOX_SERVER_KEY: process.env.PG_PROD_SERVER_KEY
+        // console.log('username', username)
+        // const AUTH_STRING = 'Basic ' + btoa(username + ":")
+        // console.log('AUTH_STRING', AUTH_STRING, PG_API_URL)
+        // const AUTH_STRING = 'Basic ' + new Buffer(username + ":").toString('base64')
+        // // "merchant_name": 'RQA'
+
+        // console.log(transaction)
+
+        // await axios.post(`${PG_API_URL}/transactions`, transaction, {headers: {accept: 'application/json', 'content-type': 'application/json', Authorization: AUTH_STRING}})
+        //             .then(result => {
+        //                 console.log('result', result)
+        //                 if(result.status == 201){
+        //                     // const { data, error } = await supabase
+        //                     //                         .from('orgz_orders')
+        //                     //                         .update({ order_status: 'pending', updated_at: new Date().toDateString() })
+        //                     //                         .eq('id', order_id)
+        //                     //                         .select().single()
+
+        //                     // if(error){
+        //                     //     return res.status(400).json({error: true, message: 'Error create invoice'})
+
+
+        //                     // }
+        //                     res.status(200).json({error: false, message: 'Successfull create invoice', data: {token: result.data.token, payment_url: result.data.redirect_url, transaction_date: transaction_date}})
+
+        //                 }
+        //             })
+        //             .catch(error => {
+        //                 return res.status(400).json({error: true, message: 'Error when create invoice: ' + error})
+        //             })
 
         // let parameter = {
         //     "transaction_details": {
