@@ -11,7 +11,7 @@ const app = express()
 
 dotenv.config()
 
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://15f1-113-11-180-17.ngrok-free.app']
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://15f1-113-11-180-17.ngrok-free.app','https://orgzsprofileapi.vercel.app']
 
 // (origin, callback) => {
 //     if (!origin || allowedOrigins.includes(origin)) {
@@ -30,8 +30,8 @@ const corsOptions = {
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
-// app.use(/.*/, cors())
-app.use(cors(corsOptions))
+app.use(/.*/, cors())
+// app.use(cors(corsOptions))
 
 // app.use(cors())
 
