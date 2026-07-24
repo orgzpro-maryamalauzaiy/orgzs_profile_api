@@ -521,7 +521,7 @@ export const createGeneralInvoice = async (req, res) => {
     // const {products, total_amount, total_price, admin_fee, total_discount, promo_code} = req.body
     // const uni = req.user.uni
 
-    const {participants, phone_number, class_name, class_id, packet, category, type, total_price, amount, discount, promo_code, admin_fee} = req.body
+    const {participant, phone_number, class_name, class_id, type, total_price, amount, discount, promo_code, admin_fee} = req.body
 
     const transaction_date = new Date().toISOString()
 
